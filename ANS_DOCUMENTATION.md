@@ -76,7 +76,7 @@ You must install Python on both the conversion and web servers in order to run P
 3. Create a Python virtual environment to install the libraries needed to manage Omero and run the Python scripts:
     `conda create --name ome python=3.9.13`
 4. Activate the virtual environment: `conda activate ome`
-5. Install dependencies using the `requirements.txt` that in the [Github repository](https://github.com/khangduongn/ANS-OME-Scripts)
+5. Install dependencies using the `requirements.txt` that in the source code GitHub repository.
     * `pip3 install -r </path/to/requirements.txt>`, replacing `</path/to/requirements.txt>` with the path to the `requirements.txt` file
 
 
@@ -89,7 +89,7 @@ Prerequisite:
     * It is recommended to have a user with sudo privileges manage the Docker containers.
 
 Installation:
-1. The easiest way to get an Omero instance up and running is through using docker compose, which allows you to start a multi-container application quickly. Install the docker compose files from this (GitHub repository)[https://github.com/khangduongn/ANS-OME-Scripts]. You can clone the repository or just install the ZIP file directly.
+1. The easiest way to get an Omero instance up and running is through using docker compose, which allows you to start a multi-container application quickly. Install the docker compose files from the source code GitHub repository. You can clone the repository or just install the ZIP file directly.
     * An Omero application requires three Docker containers to run (Omero server, Omero web, and PostgreSQL database). 
         * Omero server handles the backend logic
         * Omero web handles the frontend user interface
@@ -140,7 +140,7 @@ If you want to make changes to the environment of a Docker container (make new f
 
 ### Enable the web domain url without the port 4080
 When first setting up the Omero web application, the default url may be `<ip-address>:4080`. If you want to change this, you will need to run Caddy and use a reverse proxy.
-1. The `Caddyfile` configuration file is in the GitHub repository and must be moved to be in the same directory as the `docker-compose.yml` file. 
+1. The `Caddyfile` configuration file is in the source code GitHub repository and must be moved to be in the same directory as the `docker-compose.yml` file. 
 2. View the comments in the `Caddyfile` and `docker-compose.yml` file and add the appropriate configurations for your server.
 3. Shut down the Docker containers and start them again for the changes to take effect.
 4. You will know if the changes worked when you go to the url `https://<web-domain>`, replacing `<web-domain>` with the domain you provided in the configuration, and you see the login page or the public user's dashboard.
@@ -151,23 +151,23 @@ When first setting up the Omero web application, the default url may be `<ip-add
 ### Setting up the Import Pipeline
 1. Create a daemon service file `/etc/systemd/system/import.service` using your favorite editor (must use sudo)
 2. Add the following lines to the file:
-```
-[Unit]
-Description=Omero Import Daemon
+    ```
+    [Unit]
+    Description=Omero Import Daemon
 
-[Service]
-ExecStart=</path/to/miniconda>/envs/ome/bin/python3 -u </path/to/import_monitor.py> -u <username> -w <password> </path/to/mount/with/converted/images> -v -l </path/to/your/import/logs/file>
-Restart=always
+    [Service]
+    ExecStart=</path/to/miniconda>/envs/ome/bin/python3 -u </path/to/import_monitor.py> -u <username> -w <password> </path/to/mount/with/converted/images> -v -l </path/to/your/import/logs/file>
+    Restart=always
 
-[Install]
-WantedBy=multi-user.target
-```
-* `</path/to/miniconda>` - path to your miniconda instance
-* `</path/to/import_monitor.py>` - path to your import_monitor.py script (found in the GitHub repository)
-* `<username>` - Omero username of the user that will own the images
-* `<password>` - password of the Omero user
-* `</path/to/mount/with/converted/images>` - path to the mounted directory with the converted images from the conversion server
-* `</path/to/your/import/logs/file>` - path to the import logs file that will store the logs for the imports 
+    [Install]
+    WantedBy=multi-user.target
+    ```
+    * `</path/to/miniconda>` - path to your miniconda instance
+    * `</path/to/import_monitor.py>` - path to your import_monitor.py script (found in the source code GitHub repository)
+    * `<username>` - Omero username of the user that will own the images
+    * `<password>` - password of the Omero user
+    * `</path/to/mount/with/converted/images>` - path to the mounted directory with the converted images from the conversion server
+    * `</path/to/your/import/logs/file>` - path to the import logs file that will store the logs for the imports 
 
 3. Start the daemon service by running `sudo systemctl start import`
 
@@ -183,6 +183,6 @@ WantedBy=multi-user.target
     * Run the command `sudo crontab -e` to create a root cronjob
     * Add the following line to the cronjob file: \
     `0 5 * * * /usr/bin/systemctl restart import && </path/to/reimport_images_run.sh> >> </path/to/reimport/logs/file> 2>&1`
-        * `</path/to/reimport_images_run.sh>` - path to the reimport_images_run.sh file in the server. This file can be found in the GitHub repository. Follow the instructions in the file to customize it to your needs.
+        * `</path/to/reimport_images_run.sh>` - path to the reimport_images_run.sh file in the server. This file can be found in the source code GitHub repository. Follow the instructions in the file to customize it to your needs.
         * `</path/to/reimport/logs/file>` - path to the reimport logs file that will store the logs for the images that were reimported due to failure 
     * Make sure that the `reimport_images_run.sh` file is executable and the `reimport_images.py` file is in the Omero docker container via a mount declared in `docker-compose.yml`
