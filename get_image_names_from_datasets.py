@@ -17,7 +17,7 @@ import logging
 import sys
 import os
 
-parser = argparse.ArgumentParser(description = 'Reimport missing images to Omero')
+parser = argparse.ArgumentParser(description = 'Get Image Names From Datasets')
 parser.add_argument('-u', '--username', type=str, required=True, help='Omero username that has all of the images and datasets')
 parser.add_argument('-w', '--password', type=str, required=True, help='Omero password for the username provided')
 parser.add_argument('-c', '--csv-name', type=str, required=True, help='Name of the new csv file will be generated to store all images with their dataset names')

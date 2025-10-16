@@ -1,0 +1,7 @@
+# config/conversion_conf.yml
+folders:
+  input: </path/to/raw/images/directory>
+  recycle: </path/to/recycle/bin/directory>
+  output: </path/to/import/directory>
+  failure: </path/to/failed/images/directory>
+  staging: </path/to/staging/directory>

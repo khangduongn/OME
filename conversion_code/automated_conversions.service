@@ -1,0 +1,20 @@
+[Unit]
+Description=Automated Conversions Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=</path/to/conversion/working/directory>
+
+Environment=PYTHONUNBUFFERED=1
+
+ExecStart=</path/to/miniconda>/envs/automated_conversions/bin/python -u \
+        </path/to/slide_watcher_poll.py>
+
+Restart=on-failure
+
+StandardOutput=append:</path/to/logs/directory>/conversion.log
+StandardError=append:</path/to/logs/directory>/conversion.log
+
+[Install]
+WantedBy=multi-user.target
