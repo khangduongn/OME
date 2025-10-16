@@ -28,18 +28,19 @@ services:
       - "4064:4064"
     volumes:
       - "omero:/OMERO"
-      - "/mnt/XLINUXDIATOMSE3ARCON/:/mnt/images:ro"
-      - "/home/bdim/omero_scripts/:/opt/omero/server/OMERO.server/lib/scripts/omero/custom_scripts:ro"
-      - "/home/bdim/custom_scripts/:/mnt/custom_scripts:ro"
+      - "</path/to/images/on/docker/host>:</path/to/images/on/omero/docker/container>:ro" #replace each path accordingly
+      - "</path/to/omero/ui/scripts/on/docker/host>:/opt/omero/server/OMERO.server/lib/scripts/omero/custom_scripts:ro" #replace path 
+      - "</path/to/custom/scripts/on/docker/host>:</path/to/custom/scripts/on/docker/container>:ro" #replace path
 
   omeroweb:
     # This container uses the tag for the latest web release of OMERO 5
     # To upgrade to the next major release, increment the major version number
     image: "omero-web-customized"
     environment:
+      CSRF_TRUSTED_ORIGINS: <web-url-of-omero-host> #replace this with the url of the server that you're hosting Omero from
       OMEROHOST: omeroserver
       CONFIG_omero_web_public_enabled: true
-      CONFIG_omero_web_public_user: public
+      CONFIG_omero_web_public_user: ${PUBLIC_USER} #public user is stored in .env file (only accessible by users with root privileges)
       CONFIG_omero_web_public_password: ${PUBLIC_USER_PASSWORD} #password is stored in .env file (only accessible by users with root privileges)
       CONFIG_omero_web_public_server__id: 1
       CONFIG_omero_web_public_url__filter: '^/iviewer|webgateway|webclient|api|gallery|public'    
@@ -48,7 +49,22 @@ services:
     ports:
       - "4080:4080"
     volumes:
-      - "/home/bdim/docker-omero/custom-omero-web-docker/public/public:/opt/omero/web/venv3/lib/python3.9/site-packages/public"
+      - "<path/to/docker-omero/directory>/custom-omero-web-docker/public/public:/opt/omero/web/venv3/lib/python3.9/site-packages/public"
+  caddy:
+    image: caddy:latest
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "./Caddyfile:/etc/caddy/Caddyfile:ro"
+      - "caddy_data:/data"
+      - "caddy_config:/config"
+    depends_on:
+      - omeroweb
+    networks:
+      - omero
 
 networks:
   omero:
@@ -56,3 +72,5 @@ networks:
 volumes:
   database:
   omero:
+  caddy_data:
+  caddy_config:

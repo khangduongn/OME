@@ -1,0 +1,6 @@
+<web-url-omero-host> { // replace with web url of the omero host
+    reverse_proxy omeroweb:4080 {
+        header_up X-Forwarded-Host {host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}

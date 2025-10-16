@@ -1,20 +1,23 @@
-
-
-#these configs are commented out but are useful for looking at syntax
-#config set omero.web.gallery.category_queries '{"all":{"label":"All Studies", "index":0, "query":"FIRST50:Name"}}'
-#config set omero.web.gallery.subheading_html 'Collections'
-#config set omero.web.gallery.filter_keys '["Name", "State", "County"]'
-#config set omero.web.gallery.title 'ANS Diatom Slides'
-#config set omero.web.gallery.filter_mapr_keys '["State", "County"]'
-
-#disable debug mode for production
-config set omero.web.debug False
+# Add the web domain to trusted origins 
+config set omero.web.csrf_trusted_origins '["https://<web-url-omero-host>"]' # replace with web url of the omero host
 
 # Add omero gallery to webclient
 config append omero.web.apps '"omero_gallery"'
 
-# Add the custom 'public' app to webclient
+#config set omero.web.gallery.category_queries '{"all":{"label":"All Studies", "index":0, "query":"FIRST50:Name"}}'
+
+#config set omero.web.gallery.subheading_html 'Collections'
+
+#config set omero.web.gallery.filter_keys '["Name", "State", "County"]'
+
+#config set omero.web.gallery.title 'ANS Diatom Slides'
+
+#config set omero.web.gallery.filter_mapr_keys '["State", "County"]'
+
+config set omero.web.debug False
+
+# By default, we enable 'public' only
 config append omero.web.apps '"public"'
 
-# Add a link to the 'public' app from webclient toolbar
+# Add a link to the app from webclient toolbar
 config append omero.web.ui.top_links '["Public Search", "public_index", {"title": "Open app in new tab", "target": "_blank"}]'
