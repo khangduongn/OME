@@ -32,7 +32,7 @@ The pipeline can be broken down into two smaller pipelines:
 ### Conversion Pipeline
 The conversion pipeline is implemented in Python. It monitors a directory for new raw Diatom scans (in .tif file format) and stitches and converts them into full scans with the .ome.tiff file format compatible in Omero.
 
-The raw scans should get put into a directory where the pipeline can access and read. The raw scans directory is usually in the form <imageName>/<imageName>/scans
+The raw scans should get put into a directory where the pipeline can access and read. The raw scans directory is usually in the form `<imageName>/<imageName>/<scans>`
 
 
 ### Import Pipeline
@@ -59,14 +59,104 @@ The web server that is hosting Omero must also have access to the network file s
 The details about these mounts can be obtained by contacting ANS IT.
 
 ### Conversion Server
-Currently, the conversion pipeline is deployed on the conversion server. The conversion script can be run manually by running conversion.py on raw image scans. To monitor a directory for new tiles to stitch and convert, the script [INSERT SCRIPT NAME] can be run. This script is currently running on the conversion server at all times in a daemon service. The file to manage the service is located in 
+Currently, the conversion pipeline is deployed on the conversion server. The conversion script can be run manually by running conversion.py on raw image scans. To monitor a directory for new tiles to stitch and convert, the script slide_watcher_poll.py can be run. This script is currently running on the conversion server at all times in a daemon service. The file to manage the service is located in `/etc/systemd/system/automated_conversions.service`.
 
 ### Web Server
 Currently, the Omero web application is deployed on the web server. The import.py script can be run to import converted image scans. To monitor a directory for new images to import, you need to run the import_monitor.py script. The monitor script is currently running on the web server at all times in a daemon service. The file to manage the service should have the path `/etc/systemd/system/import.service`. The script looks the mounted read-only directory from the network file share for new images that got converted and import them to the Omero web app. 
  
-## Setup
+## Setup Conversion Server
 ### Installing Python
-You must install Python on both the conversion and web servers in order to run Python scripts used in the conversion and import pipelines.
+You must install Python on the conversion server in order to run Python scripts used in the conversion pipeline.
+1. It is recommended you install miniconda, which is a lightweight package management system for Python. You can install miniconda for your system [here](https://www.anaconda.com/docs/getting-started/miniconda/install)
+2. You can add `conda` to your environment variable so you don't have to type out the full path to conda whenever you want to run a conda command.
+    * For example, in Linux, you can do the following:
+        1. Open the `~/.bashrc` file with your favorite editor and add the following line to it:
+            * `export PATH="</path/to/your/anaconda3/bin>:$PATH"`, replacing `</path/to/your/anaconda3/bin>` with the path to the bin directory where your conda executable is.
+        2. Apply the change by running the command `source ~/.bashrc`
+3. Create a Python conda environment to install the libraries needed to run the Python scripts:
+    `conda env create -f </path/to/requirement.yml>`, replacing `</path/to/requirement.yml>` with the path to the `requirement.yml` file found in the source code GitHub repository.
+4. Activate the conda environment: `conda activate automated_conversions`
+5. To deactivate the conda environment, run the command: `conda deactivate`
+
+### Setting up the Conversion Pipeline Working Directory
+You must set up the conversion pipeline working directory before running the conversion pipeline. There should be an example of this directory in the source code GitHub repository.
+1. There should be three directories within this working directory: `bin`, `config`, `logs`.
+    * `bin` - this directory should contain the Python scripts used for conversion (`conversion_automated.py`, `slide_watcher_poll.py`)
+        * `conversion_automated.py` - this script performs the stitching and conversion of image slides
+        * `slide_watcher_poll.py` - this script watches a directory for new raw image slides to automatically stitch and convert using `conversion_automated.py`
+    * `config` - this directory should contain the configuration file `conversion_conf.yml` necessary for the conversion pipeline to run 
+        * The following configs should be in this file:
+        ```
+        # config/conversion_conf.yml
+        folders:
+            input: </path/to/raw/images/directory>
+            recycle: </path/to/recycle/bin/directory>
+            output: </path/to/import/directory>
+            failure: </path/to/failed/images/directory>
+            staging: </path/to/staging/directory>
+        ```
+        * `</path/to/raw/images/directory>` - path to the directory where the raw image slides are stored and ready to be converted
+        * `</path/to/recycle/bin/directory>` - path to the directory where the raw image slides are stored after it gets converted successfully (ready for deletion)
+        * `</path/to/import/directory>` - path to the directory where the converted image slides (.ome.tiff files) are stored after conversion
+        * `</path/to/failed/images/directory>` - path to the directory where the failed raw image slides are stored after it fails conversion (need to be inspected or reconverted)
+        * `</path/to/staging/directory>` - path to the staging directory where the temporary memory mapped files are created and stored during conversion before getting removed after conversion is finished
+    * `logs` - this directory should contain the `conversion.log` file used to store the logs that come from the conversion pipeline
+
+### Conversion Pipeline
+The conversion pipeline relies on two scripts, `conversion_automated.py` and `slide_watcher_poll.py`. For more information about these two scripts and the arguments they take, run the scripts with the `-h` flag.
+1. The `conversion_automated.py` script handles the conversion pipeline. 
+    1. It first looks recursively inside of the directory where the raw image slides are stored (provided as an argument) to find subdirectories with the `XYZPositions.txt` file, which is a file that contains instructions on how to assemble the image tiles together to form a stitched image. The subdirectories with the `XYZPositions.txt` file should contain the raw image tiles used to form the full image slide.
+    2. For each image slide, it uses the `XYZPositions.txt` file to assemble the full image using each imgae tile via a snaking pattern starting at the top left corner of the image moving to the right, then down, and finally left. It repeats this process until it reaches the bottom right corner of the image. If the image has multiple z-planes, it will do this for each z-plane. 
+        NOTE: There are overlapping pixels between each tile and some drift that get accounted for during conversion.
+        NOTE: During conversion, temporary memory mapped files get generated in the staging directory, which is used to avoid loading large image arrays all in memory.
+    3. After stitching is finished, the full image slide gets converted and saved as a .ome.tiff file format, which is the optimal format for the Omero image viewer. This converted image file gets placed into the import directory so that the import pipeline can import it into the Omero web application.
+    4. The raw image slide directory gets put into the recycle bin directory to be deleted later after the converted image is reviewed for any issues in Omero.
+    5. Any raw image slide that fails conversion gets moved to the failed images directory for review. To retry conversion, move the raw image slide from the failed images directory to the raw images directory.
+2. The `slide_watcher_poll.py` script watches the raw images directory for new raw image slides to convert and places the converted image files in the imports directory.
+
+### Setting up the Conversion Pipeline
+1. Create a daemon service file `/etc/systemd/system/automated_conversions.service` using your favorite editor (must use sudo)
+2. Add the following lines to the file:
+    ```
+    [Unit]
+    Description=Automated Conversions Service
+    After=network.target
+
+    [Service]
+    Type=simple
+    WorkingDirectory=</path/to/conversion/working/directory>
+
+    Environment=PYTHONUNBUFFERED=1
+
+    ExecStart=</path/to/miniconda>/envs/automated_conversions/bin/python -u \
+            </path/to/slide_watcher_poll.py>
+
+    Restart=on-failure
+
+    StandardOutput=append:</path/to/logs/directory>/conversion.log
+    StandardError=append:</path/to/logs/directory>/conversion.log
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+    * `</path/to/miniconda>` - path to your miniconda instance (make sure you choose the correct virtual environment with the required dependencies [in this case, the environment is called automated_conversions])
+    * `</path/to/slide_watcher_poll.py>` - path to your slide_watcher_poll.py script (found in the source code GitHub repository)
+    * `</path/to/logs/directory>` - path to the directory where you want the conversion log to be stored in
+    * `</path/to/conversion/working/directory>` - path to the working directory of your conversion
+
+3. Start the daemon service by running `sudo systemctl start automated_conversions`
+
+4. You can check the status of the daemon service by running `sudo systemctl status automated_conversions`
+
+5. You can view the conversion logs by looking at the log file, which you provided in the automated_conversions service file.
+
+6. You can shut down the daemon service by running `sudo systemctl stop automated_conversions`
+
+7. You will need to enable the daemon service on boot by running `sudo systemctl enable automated_conversions.service`
+
+## Setup Web Server
+### Installing Python
+You must install Python on the web server in order to run Python scripts used in the import pipeline.
 1. It is recommended you install miniconda, which is a lightweight package management system for Python. You can install miniconda for your system [here](https://www.anaconda.com/docs/getting-started/miniconda/install)
 2. You can add `conda` to your environment variable so you don't have to type out the full path to conda whenever you want to run a conda command.
     * For example, in Linux, you can do the following:
@@ -144,9 +234,6 @@ When first setting up the Omero web application, the default url may be `<ip-add
 2. View the comments in the `Caddyfile` and `docker-compose.yml` file and add the appropriate configurations for your server.
 3. Shut down the Docker containers and start them again for the changes to take effect.
 4. You will know if the changes worked when you go to the url `https://<web-domain>`, replacing `<web-domain>` with the domain you provided in the configuration, and you see the login page or the public user's dashboard.
-
-### Setting up the Conversion Pipeline
-1. (#TODO)
 
 ### Setting up the Import Pipeline
 1. Create a daemon service file `/etc/systemd/system/import.service` using your favorite editor (must use sudo)
